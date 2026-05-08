@@ -170,6 +170,7 @@ export default defineConfig({
   title: 'minimind从零理解llm训练',
   description: '深入理解 LLM 训练的每个设计选择',
   srcDir: '.',
+  srcExclude: ['README.md', 'README_en.md'],
   outDir: '.vitepress/dist',
   cleanUrls: true,
   ignoreDeadLinks: true,
