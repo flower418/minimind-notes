@@ -321,6 +321,27 @@ Special thanks to [@jingyaogong](https://github.com/jingyaogong) for open-sourci
 
 ---
 
+## ☕ Buy me a coffee
+
+If this tutorial helped you understand LLM training, consider supporting future content ❤️
+
+<table>
+  <tr>
+    <td align="center">
+      <strong>💚 WeChat Pay</strong><br/>
+      <img src="public/wechat-qrcode.jpg" alt="WeChat tip" width="220"/>
+    </td>
+    <td align="center">
+      <strong>💙 Alipay</strong><br/>
+      <img src="public/alipay-qrcode.jpg" alt="Alipay tip" width="220"/>
+    </td>
+  </tr>
+</table>
+
+> Feel free to leave a message or reach out after sponsoring — your support keeps the experiments coming!
+
+---
+
 ## 📞 Contact
 
 - Issue Feedback: [GitHub Issues](https://github.com/joyehuang/minimind-notes/issues)

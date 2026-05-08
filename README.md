@@ -319,6 +319,27 @@ minimind-notes/
 
 ---
 
+## ☕ 请作者喝杯咖啡
+
+如果这个教程帮助你理解了 LLM 训练，欢迎打赏支持后续内容更新 ❤️
+
+<table>
+  <tr>
+    <td align="center">
+      <strong>💚 微信支付</strong><br/>
+      <img src="public/wechat-qrcode.jpg" alt="微信打赏" width="220"/>
+    </td>
+    <td align="center">
+      <strong>💙 支付宝</strong><br/>
+      <img src="public/alipay-qrcode.jpg" alt="支付宝打赏" width="220"/>
+    </td>
+  </tr>
+</table>
+
+> 打赏后欢迎留言或主动联系我，让对比实验持续做下去！
+
+---
+
 ## 📞 联系方式
 
 - Issue 反馈：[GitHub Issues](https://github.com/joyehuang/minimind-notes/issues)

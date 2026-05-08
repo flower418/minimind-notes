@@ -15,6 +15,7 @@ const LearningPathCards = defineAsyncComponent(() => import('./components/Learni
 const ModulesGrid = defineAsyncComponent(() => import('./components/ModulesGrid.vue'))
 const TerminalCode = defineAsyncComponent(() => import('./components/TerminalCode.vue'))
 const HomeHeroVideo = defineAsyncComponent(() => import('./components/HomeHeroVideo.vue'))
+const Sponsorship = defineAsyncComponent(() => import('./components/Sponsorship.vue'))
 
 // 注入 Vercel Analytics 和 Speed Insights
 // 使用 requestIdleCallback 延迟加载，避免阻塞主线程
@@ -45,5 +46,6 @@ export default {
     app.component('ModulesGrid', ModulesGrid)
     app.component('TerminalCode', TerminalCode)
     app.component('HomeHeroVideo', HomeHeroVideo)
+    app.component('Sponsorship', Sponsorship)
   }
 }
