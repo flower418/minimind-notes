@@ -87,12 +87,16 @@ def experiment_with_position():
     ])
 
     # 添加简单的位置编码（位置0, 1, 2）
-    # 这里用最简单的方法：把位置编号乘以一个小数加到向量上
-    position_ids = torch.tensor([0.1, 0.2, 0.3]).unsqueeze(1)  # [3, 1]
+    # 不同维度用不同的偏移量，避免置换对称性导致矩阵相同
+    position_enc = torch.tensor([
+        [0.10, 0.03, 0.00],  # 位置 0
+        [0.20, 0.10, 0.05],  # 位置 1
+        [0.30, 0.20, 0.15],  # 位置 2
+    ])  # [3, 3]
 
     # 加上位置信息
-    sentence1_with_pos = sentence1 + position_ids
-    sentence2_with_pos = sentence2 + position_ids
+    sentence1_with_pos = sentence1 + position_enc
+    sentence2_with_pos = sentence2 + position_enc
 
     print("\n句子 1 + 位置编码: [我(位置0), 喜欢(位置1), 你(位置2)]")
     print(sentence1_with_pos)
