@@ -363,7 +363,7 @@ safetensors_rust.SafetensorError: Error while deserializing header: header too l
   - MiniMind 使用 Pre-Norm（归一化在子层之前）
   - Pre-Norm 更稳定，适合深层网络（>12层）
   - 残差路径更"干净"（不被 Norm 打断）
-- **代码位置**：model/model_minimind.py:359-380
+- **代码位置**：model/model_minimind.py:178-194
 
 **2025-11-10：学习路径的思考**
 - **关键问题**：原仓库能学到这些知识吗？
