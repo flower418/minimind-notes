@@ -219,7 +219,7 @@ safetensors_rust.SafetensorError: Error while deserializing header: header too l
 - 主要实现：`model/model_minimind.py`（471 行）
 - 学习材料：`learning_materials/`（7 个示例程序）
 - RMSNorm 实现：`model/model_minimind.py:95-105`
-- RoPE 实现：`model/model_minimind.py:108-137`
+- RoPE 实现：`model/model_minimind.py:62-93`（precompute_freqs_cis + apply_rotary_pos_emb）
 
 ### 学习辅助材料
 
