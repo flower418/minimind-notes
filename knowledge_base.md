@@ -29,7 +29,8 @@ keywords: LLM知识库, Transformer知识库, 大模型知识库, 深度学习�
    - SwiGLU 实现
    - Attention vs FeedForward 对比
 5. [Transformer 架构](#5-transformer-架构)
-6. [问答记录](#问答记录)
+6. [残差连接](#6-残差连接residual-connection)
+7. [问答记录](#问答记录)
 
 ---
 
@@ -1635,6 +1636,152 @@ x = RMSNorm(x + FFN(x))        # 先FFN，再归一化
 
 ---
 
+**Q20: 残差连接的核心公式是什么？为什么能解决梯度消失？** ⭐
+
+A: 核心公式是 $y = F(x) + x$。
+
+**关键在梯度公式**：
+
+$$\frac{\partial \mathcal{L}}{\partial x} = \frac{\partial \mathcal{L}}{\partial y} \left( \frac{\partial F}{\partial x} + \mathbf{1} \right)$$
+
+括号里永远有 $+1$。即使子网络梯度 $\frac{\partial F}{\partial x} \approx 0$，整体梯度仍 $\approx \frac{\partial \mathcal{L}}{\partial y}$，不会因为多层连乘而衰减到 0。
+
+**直观**：无残差是普通公路（每层都可能让梯度减速），有残差是多了一条直达各层的高速公路（恒等路径导数恒为 1）。
+
+---
+
+**Q21: "残差"（residual）的含义是什么？为什么不叫"跳接"？** ⭐
+
+A: "残差"不是"跳接"。"残差"指的是子网络学的是变化量（$y - x$），而不是绝对值。
+
+- 输入 $x$ 已经是"默认答案"
+- $F(x)$ 只需学需要修改的部分（残差）
+- 如果什么都不要改，$F(x)$ 变成 0 即可
+
+**类比**：不是画一整幅画，而是在已有草稿上修改。
+
+**极端情况验证**：如果最优解是恒等映射：
+- 无残差：需要 $F(x) = x$（精确拟合，很难）
+- 有残差：只需 $F(x) = 0$（权重全 0，很容易）
+
+---
+
+**Q22: Transformer 中为什么每个 Block 需要两个残差连接？** ⭐
+
+A: 因为一个 Block 包含两个功能不同的子层（Attention + FFN）：
+
+- **残差 1**（Attention 后）：让 Attention 的梯度直达输入
+- **残差 2**（FFN 后）：让 FFN 的梯度跳过 Attention 直达
+
+**好处**：
+1. 两个子层各有独立高速路，互不干扰
+2. 一个子层学坏了不影响另一个的梯度
+3. 相比共用一个残差更灵活
+
+```python
+x = x + attention(norm(x))    # 残差 1，只跳 Attention
+x = x + ffn(norm(x))          # 残差 2，只跳 FFN
+```
+
+---
+
+## 6. 残差连接（Residual Connection）
+
+### 6.1 为什么需要残差连接？
+
+**退化问题**（degradation problem，ResNet 论文提出）：
+- 理论上，更深的网络不应该比浅的更差（多出的层可学成恒等映射）
+- 实际上，深层网络反而更差 — 因为梯度消失
+
+**梯度消失的本质**：
+- 反向传播时，梯度需要穿过所有层
+- 每层乘以一个 < 1 的导数 → 连乘 N 次后梯度指数衰减
+- 前面几层几乎收不到梯度信号，权重无法更新
+
+### 6.2 残差连接的核心公式
+
+$$y = \mathcal{F}(x) + x$$
+
+其中 $x$ 是恒等映射路径，$\mathcal{F}(x)$ 是子网络（学习残差/调整量）。
+
+### 6.3 如何解决梯度消失？
+
+**梯度公式**：
+
+$$\frac{\partial \mathcal{L}}{\partial x} = \frac{\partial \mathcal{L}}{\partial y} \left( \frac{\partial \mathcal{F}}{\partial x} + \mathbf{1} \right)$$
+
+**核心洞察**：括号里永远有 $+1$ 这个常数项。即使子网络梯度 $\frac{\partial \mathcal{F}}{\partial x} \approx 0$（梯度消失），梯度仍 $\approx \frac{\partial \mathcal{L}}{\partial y}$，不会衰减到 0。
+
+### 6.4 "残差"的含义：学习变化量
+
+**关键理解**：网络不是从零学输出 $y$，而是学"需要调整多少"。
+
+- 无残差：$y = F(x)$ — 需要学到完整输出
+- 有残差：$y = F(x) + x$ — 只需要学到 $y - x$ 的差值
+
+**直觉类比**：
+- 直接画肖像 → 很难（学完整的 y）
+- 在照片上修改瑕疵 → 容易（只学差值）
+
+**极端情况**：如果最优解就是恒等映射（什么都不做）：
+- 无残差：需要 $F(x) = x$（精确拟合，很难）
+- 有残差：只需要 $F(x) = 0$（权重全 0，很容易）
+
+### 6.5 Transformer 中的双残差结构
+
+每个 Transformer Block 有**两个**残差连接：
+
+```
+x ───────────────────────────┐
+  → RMSNorm → Attention → [+]─ 残差 #1
+                              │
+    x' ──────────────────────┐
+      → RMSNorm → FFN → [+]─ 残差 #2
+```
+
+**MiniMind 代码**（`model/model_minimind.py:456-476`）：
+
+```python
+def forward(self, hidden_states, ...):
+    residual = hidden_states                    # 保存
+    hidden_states = self.input_layernorm(hidden_states)  # Pre-Norm
+    hidden_states, _ = self.self_attn(hidden_states, ...)
+    hidden_states += residual                   # 残差 #1
+
+    hidden_states = hidden_states + self.mlp(    # 残差 #2
+        self.post_attention_layernorm(hidden_states)
+    )
+    return hidden_states
+```
+
+**为什么两个？** Attention 和 FFN 功能不同，各需要独立的高速公路。
+
+### 6.6 Pre-Norm vs Post-Norm
+
+| | Pre-Norm (MiniMind) | Post-Norm (原始Transformer) |
+|---|---|---|
+| 公式 | `x + F(Norm(x))` | `Norm(x + F(x))` |
+| 残差路径过 Norm | 不过 | 经过 |
+| 梯度流 | 畅通 | 可能被Norm压缩 |
+| 训练稳定性 | 好 | 需要 warmup |
+
+### 6.7 实验验证
+
+本模块提供了三个实验在 `modules/02-architecture/01-residual-connection/experiments/`：
+
+| 实验 | 目的 |
+|------|------|
+| `exp1_with_without_residual.py` | 有/无残差训练对比 |
+| `exp2_gradient_flow.py` | 各层梯度范数可视化 |
+| `exp3_depth_impact.py` | 深度影响（3/5/10/20层对比） |
+
+**关键发现**：
+- 浅层 (3-5层): 差异不大
+- 中层 (10层): 无残差开始吃力
+- 深层 (20层): 无残差直接 NaN，有残差稳定训练
+
+---
+
 ## 📊 重要公式汇总
 
 ### RMSNorm
@@ -1658,6 +1805,12 @@ k_rotated = k * cos(pos × freqs) + rotate_half(k) * sin(pos × freqs)
 scores = (Q @ K^T) / sqrt(head_dim)
 ```
 
+### 残差连接
+```
+y = F(x) + x
+∂L/∂x = ∂L/∂y · (∂F/∂x + 1)
+```
+
 ---
 
-**最后更新**：2026-01-18
+**最后更新**：2026-05-25
