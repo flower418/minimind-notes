@@ -1685,6 +1685,49 @@ x = x + ffn(norm(x))          # 残差 2，只跳 FFN
 
 ---
 
+**Q23: MiniMindBlock 中为什么两个残差的写法不同？**
+
+A: 残差 1 分两行，因为 Attention 额外返回 `present_key_value`（用于 KV Cache）：
+
+```python
+residual = hidden_states
+hidden_states, pkv = self.self_attn(...)  # 返回两个值
+hidden_states += residual                  # 需要先拿到 pkv 再加残差
+```
+
+残差 2 一行搞定，因为 FFN 只返回一个值：
+```python
+hidden_states = hidden_states + self.mlp(norm(hidden_states))
+```
+
+本质上完全等价，都是 `y = F(Norm(x)) + x`。
+
+---
+
+**Q24: 新版 MiniMind 的 QK-Norm 是做什么的？为什么重要？**
+
+A: QK-Norm 是对 Attention 的 Q 和 K 在投影后、RoPE 前分别做 RMSNorm。
+
+```python
+xq, xk = self.q_norm(xq), self.k_norm(xk)  # 各 head 独立归一化
+```
+
+**为什么需要？** 训练中 Q/K 的范数可能越来越大 → attention logits 变大 → softmax 变陡（接近 one-hot）→ 梯度接近 0（饱和区）。QK-Norm 把 Q/K 拉回正常范围，防止这个问题。
+
+**哪些模型用？** DeepSeek-V2/V3、Llama 3+、Qwen 2+ 等现代 LLM。
+
+---
+
+**Q25: `intermediate_size = ceil(hidden * π / 64) * 64` 这个公式怎么理解？**
+
+A: 分两步理解：
+1. `hidden * π`：中间维度 = hidden 的 π 倍（≈3.14 倍）。比常见的 8/3（≈2.67）或 4 倍更激进。
+2. `ceil(... / 64) * 64`：向上取整到 64 的倍数 → GPU Tensor Core 对齐（矩阵乘法硬件要求 64 的倍数才最高效）。
+
+例如 hidden=768: `ceil(768×3.1416/64)×64 = ceil(37.7)×64 = 2432`
+
+---
+
 ## 6. 残差连接（Residual Connection）
 
 ### 6.1 为什么需要残差连接？
@@ -1765,7 +1808,51 @@ def forward(self, hidden_states, ...):
 | 梯度流 | 畅通 | 可能被Norm压缩 |
 | 训练稳定性 | 好 | 需要 warmup |
 
-### 6.7 实验验证
+### 6.8 MiniMindBlock 深度源码解读（2026-05-25）
+
+**Block 的核心设计模式：调度器模式**
+
+Block 本身不干计算的活，它的角色是"编排调度":
+- 管理 Norm 的顺序（Pre-Norm）
+- 管理残差的保存与合并
+- 决定子层（Attention / FFN）的调用顺序
+- 子层（Attention、FFN）是纯计算模块，不知道 Norm 和残差的存在
+
+**源码逐行解析**：
+
+```python
+def forward(self, hidden_states, position_embeddings, ...):
+    # 子层 1: Attention
+    residual = hidden_states                                 # 恒等路径
+    hidden_states, pkv = self.self_attn(
+        self.input_layernorm(hidden_states), ...)            # Pre-Norm + Attention
+    hidden_states += residual                                # 残差合并
+
+    # 子层 2: FFN
+    hidden_states = hidden_states + self.mlp(                 # 残差合并
+        self.post_attention_layernorm(hidden_states))         # Pre-Norm + FFN
+    return hidden_states, pkv
+```
+
+**关键发现：新版 MiniMind 的 Attention 包含 QK-Norm**
+
+```python
+# Attention.__init__
+self.q_norm = RMSNorm(self.head_dim, eps=...)
+self.k_norm = RMSNorm(self.head_dim, eps=...)
+
+# Attention.forward: QK 投影后、RoPE 前做归一化
+xq, xk = self.q_norm(xq), self.k_norm(xk)
+```
+
+QK-Norm 防止 Q/K 范数过大导致 attention logits 极端 → softmax 陡峭 → 梯度消失。
+
+**新版与旧版的差异**：
+- `intermediate_size = ceil(hidden * π / 64) * 64`（新）vs `8/3 * hidden`（旧）
+- 新版有 QK-Norm，旧版没有
+- 新版 MoE 简化（无 shared experts）
+
+### 6.9 实验验证
 
 本模块提供了三个实验在 `modules/02-architecture/01-residual-connection/experiments/`：
 

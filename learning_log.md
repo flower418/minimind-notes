@@ -523,6 +523,33 @@ safetensors_rust.SafetensorError: Error while deserializing header: header too l
 
 ---
 
+### 2026-05-25 续：深度解析 MiniMindBlock 源码实现
+
+#### ✅ 完成事项
+- [x] 逐行分析 ~/minimind/model_minimind.py 中 MiniMindBlock 源码
+- [x] 深入理解 Block 的内部调用链: Norm → Attention → 残差 → Norm → FFN → 残差
+- [x] 发现新版 MiniMind 的 QK-Norm 特性（旧版没有）
+- [x] 理解 intermediate_size = ceil(hidden × π / 64) × 64 的设计
+- [x] 更新知识库（新 Q&A 条目 Q23-Q25）
+
+#### 💭 个人思考
+- **收获**:
+  - Block 的核心设计模式是"调度器"——只管编排，不干计算的活
+  - 新版 QK-Norm 是关键优化，防止 attention logits 过大导致 softmax 饱和
+  - `intermediate_size` 的 π 倍设计比 8/3 更激进，反映了现代 LLM 的趋势
+  - position_embeddings 所有 Block 共用一份，节省内存
+
+- **与旧版的差异**:
+  - 旧版注重教育清晰度，新版更贴近工业实践
+  - QK-Norm 是 DeepSeek-V2/V3 引入的技术
+  - MoE 从 shared+routed 专家架构简化为纯 routed
+
+#### 下一步
+- 继续创建 02-architecture 的 Transformer Block 模块
+- 学习完整的 Block 组装和顺序设计原理
+
+---
+
 **最后更新**：2026-05-25
 **学习进度**：Tier 1 完成 ✅ + 完整架构理解 ✅ + Tier 2 开始 🚧
 
